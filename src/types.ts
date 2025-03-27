@@ -6,6 +6,7 @@ export interface Book {
   available: boolean;
   borrowedBy?: string;
   dueDate?: Date;
+  returnDate?: Date;
   category: string;
   publishedYear: number;
   description?: string;

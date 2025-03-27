@@ -15,7 +15,8 @@ import {
   HelpCircle,
   Clock,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Calendar
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -48,8 +49,25 @@ export default function Dashboard() {
   
   // Get recently returned books (books that were previously borrowed but are now available)
   const recentlyReturnedBooks = books
-    .filter(book => book.available && book.borrowedBy)
+    .filter(book => book.available && book.returnDate)
+    .sort((a, b) => {
+      // Sort by return date, most recent first
+      const dateA = new Date(a.returnDate!).getTime();
+      const dateB = new Date(b.returnDate!).getTime();
+      return dateB - dateA;
+    })
     .slice(0, 5);
+
+  // Format date to a readable string
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   // Mock notifications (replace with actual notifications system)
   const notifications = [
@@ -171,7 +189,10 @@ export default function Dashboard() {
                     <div>
                       <p className="font-medium">{book.title}</p>
                       <p className="text-sm text-gray-600">{book.author}</p>
-                      <p className="text-xs text-gray-500">ISBN: {book.isbn}</p>
+                      <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                        <Calendar size={12} />
+                        <span>Returned: {formatDate(book.returnDate!)}</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle className="text-green-500" size={16} />
