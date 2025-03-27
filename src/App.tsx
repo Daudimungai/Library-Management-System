@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { BookOpen, Users, Home } from 'lucide-react';
+import { BookOpen, Users, Home, RotateCcw } from 'lucide-react';
 import Books from './components/Books';
 import Students from './components/Students';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
+import Returns from './components/Returns';
 import { getAdminByUsername } from './db';
 import type { AuthState, Admin } from './types';
 
@@ -68,6 +69,10 @@ function App() {
                   <Users size={20} />
                   Students
                 </Link>
+                <Link to="/returns" className="flex items-center gap-2 hover:text-indigo-200">
+                  <RotateCcw size={20} />
+                  Returns
+                </Link>
                 <button
                   onClick={() => auth.logout()}
                   className="flex items-center gap-2 hover:text-indigo-200"
@@ -99,6 +104,11 @@ function App() {
             <Route path="/students" element={
               <RequireAuth>
                 <Students />
+              </RequireAuth>
+            } />
+            <Route path="/returns" element={
+              <RequireAuth>
+                <Returns />
               </RequireAuth>
             } />
             <Route path="*" element={<Navigate to="/" replace />} />
