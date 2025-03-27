@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getBooks, addBook, updateBook } from '../db';
-import type { Book } from '../types';
+import { getBooks, getStudents, addBook, updateBook } from '../db';
+import type { Book, Student } from '../types';
 import { 
   Plus, 
   Search, 
@@ -11,11 +11,15 @@ import {
   Edit3,
   Trash2,
   AlertCircle,
-  X
+  X,
+  CheckCircle
 } from 'lucide-react';
+import BorrowerForm from './BorrowerForm';
+import BorrowersList from './BorrowersList';
 
 export default function Books() {
   const [books, setBooks] = useState<Book[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showBookDetails, setShowBookDetails] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
@@ -25,6 +29,8 @@ export default function Books() {
     availability: '',
     year: ''
   });
+  const [showBorrowerForm, setShowBorrowerForm] = useState(false);
+  const [showBorrowersList, setShowBorrowersList] = useState(false);
 
   // Mock user data (replace with actual authentication later)
   const currentUser = {
@@ -33,12 +39,16 @@ export default function Books() {
   };
 
   useEffect(() => {
-    loadBooks();
+    loadData();
   }, []);
 
-  const loadBooks = async () => {
-    const booksData = await getBooks();
+  const loadData = async () => {
+    const [booksData, studentsData] = await Promise.all([
+      getBooks(),
+      getStudents(),
+    ]);
     setBooks(booksData);
+    setStudents(studentsData);
   };
 
   const handleAddBook = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -58,14 +68,29 @@ export default function Books() {
     };
 
     await addBook(newBook);
-    await loadBooks();
+    await loadData();
     setShowAddForm(false);
   };
 
-  const handleBorrowReturn = async (book: Book) => {
-    const updatedBook = { ...book, available: !book.available };
-    await updateBook(updatedBook);
-    await loadBooks();
+  const handleReturn = async (bookId: string) => {
+    try {
+      const book = books.find(b => b.id === bookId);
+      if (!book) return;
+
+      const updatedBook = {
+        ...book,
+        available: true,
+        returnDate: new Date(),
+        borrowedBy: undefined,
+        dueDate: undefined
+      };
+
+      await updateBook(updatedBook);
+      setBooks(books.map(b => b.id === bookId ? updatedBook : b));
+    } catch (error) {
+      console.error('Error returning book:', error);
+      alert('Failed to return book. Please try again.');
+    }
   };
 
   const filteredBooks = books.filter(book => {
@@ -84,6 +109,8 @@ export default function Books() {
 
   const categories = Array.from(new Set(books.map(book => book.category)));
   const years = Array.from(new Set(books.map(book => book.publishedYear))).sort((a, b) => b - a);
+
+  const availableBooks = books.filter(book => book.available);
 
   return (
     <div className="space-y-6">
@@ -159,56 +186,95 @@ export default function Books() {
         </div>
       )}
 
-      {/* Book List */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      {/* Borrower Form */}
+      {showBorrowerForm && (
+        <BorrowerForm
+          availableBooks={availableBooks}
+          onBorrow={() => {
+            setShowBorrowerForm(false);
+            loadData();
+          }}
+        />
+      )}
+
+      {/* Main Books Table */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Library Books</h1>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setShowBorrowersList(!showBorrowersList)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {showBorrowersList ? 'Hide Borrowers' : 'Show Borrowers'}
+            </button>
+            <button
+              onClick={() => setShowBorrowerForm(!showBorrowerForm)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {showBorrowerForm ? 'Cancel' : 'Borrow Books'}
+            </button>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ISBN</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Copies</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Book
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Author
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  ISBN
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredBooks.map(book => (
-                <tr 
-                  key={book.id}
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => {
-                    setSelectedBook(book);
-                    setShowBookDetails(true);
-                  }}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">{book.title}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{book.author}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{book.isbn}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{book.category}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{book.copies}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{book.publishedYear}</td>
+              {filteredBooks.map((book) => (
+                <tr key={book.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      book.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    <div className="flex items-center">
+                      <BookOpen className="h-5 w-5 text-gray-400 mr-2" />
+                      <div className="text-sm font-medium text-gray-900">
+                        {book.title}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{book.author}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{book.isbn}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                      book.available
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
                     }`}>
                       {book.available ? 'Available' : 'Borrowed'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleBorrowReturn(book);
-                      }}
-                      className="text-indigo-600 hover:text-indigo-900"
-                      disabled={!book.available && currentUser.role !== 'Librarian'}
-                    >
-                      {book.available ? 'Borrow' : 'Return'}
-                    </button>
+                    {!book.available && (
+                      <button
+                        onClick={() => handleReturn(book.id)}
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Return
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -216,6 +282,17 @@ export default function Books() {
           </table>
         </div>
       </div>
+
+      {/* Borrowers List */}
+      {showBorrowersList && (
+        <div className="mt-6">
+          <BorrowersList
+            students={students}
+            books={books}
+            onReturn={handleReturn}
+          />
+        </div>
+      )}
 
       {/* Add Book Modal */}
       {showAddForm && (
@@ -386,7 +463,7 @@ export default function Books() {
                 )}
                 <div className="pt-4">
                   <button
-                    onClick={() => handleBorrowReturn(selectedBook)}
+                    onClick={() => handleReturn(selectedBook.id)}
                     className={`w-full py-2 rounded-lg ${
                       selectedBook.available
                         ? 'bg-indigo-600 text-white hover:bg-indigo-700'
