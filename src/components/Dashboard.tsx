@@ -66,6 +66,7 @@ export default function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold text-gray-800">Welcome to School Library System</h1>
             <p className="text-gray-600 mt-2">Managing knowledge, empowering minds</p>
+            <p className="text-green-600 mt-2 font-semibold">🚀 Deployment Test Successful!</p>
           </div>
           <div className="text-right">
             <p className="text-sm text-gray-600">Logged in as:</p>
